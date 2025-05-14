@@ -1,0 +1,264 @@
+﻿// cem.proto
+syntax = "proto3";
+
+package semi.e120.cem;
+
+option csharp_namespace = "SemiE120.Protobuf";
+
+// SEMI E120 CEM 기본 메시지 타입들
+
+// Nameable 타입
+message NameableProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  repeated LogicalElementProto logical_elements = 5;
+}
+
+// EquipmentElement 타입
+message EquipmentElementProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  repeated LogicalElementProto logical_elements = 5;
+  
+  string element_type = 6;
+  string supplier = 7;
+  string make = 8;
+  string model = 9;
+  string model_revision = 10;
+  string function = 11;
+  string immutable_id = 12;
+  repeated SoftwareModuleProto software_modules = 13;
+}
+
+// ExecutionElement 타입
+message ExecutionElementProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  repeated LogicalElementProto logical_elements = 5;
+  
+  string element_type = 6;
+  string supplier = 7;
+  string make = 8;
+  string model = 9;
+  string model_revision = 10;
+  string function = 11;
+  string immutable_id = 12;
+  repeated SoftwareModuleProto software_modules = 13;
+  
+  string process_name = 14;
+  ProcessTypeEnum process_type = 15;
+  string recipe_type = 16;
+}
+
+// Equipment 타입
+message EquipmentProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  repeated LogicalElementProto logical_elements = 5;
+  
+  string element_type = 6;
+  string supplier = 7;
+  string make = 8;
+  string model = 9;
+  string model_revision = 10;
+  string function = 11;
+  string immutable_id = 12;
+  repeated SoftwareModuleProto software_modules = 13;
+  
+  string process_name = 14;
+  ProcessTypeEnum process_type = 15;
+  string recipe_type = 16;
+  
+  repeated ModuleProto modules = 17;
+  repeated SubsystemProto subsystems = 18;
+  repeated IODeviceProto io_devices = 19;
+  repeated MaterialLocationProto material_locations = 20;
+  repeated EquipmentProto equipment_list = 21;
+}
+
+// Module 타입
+message ModuleProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  repeated LogicalElementProto logical_elements = 5;
+  
+  string element_type = 6;
+  string supplier = 7;
+  string make = 8;
+  string model = 9;
+  string model_revision = 10;
+  string function = 11;
+  string immutable_id = 12;
+  repeated SoftwareModuleProto software_modules = 13;
+  
+  string process_name = 14;
+  ProcessTypeEnum process_type = 15;
+  string recipe_type = 16;
+  
+  repeated ModuleProto modules = 17;
+  repeated SubsystemProto subsystems = 18;
+  repeated IODeviceProto io_devices = 19;
+  repeated MaterialLocationProto material_locations = 20;
+}
+
+// Subsystem 타입
+message SubsystemProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  repeated LogicalElementProto logical_elements = 5;
+  
+  string element_type = 6;
+  string supplier = 7;
+  string make = 8;
+  string model = 9;
+  string model_revision = 10;
+  string function = 11;
+  string immutable_id = 12;
+  repeated SoftwareModuleProto software_modules = 13;
+  
+  repeated SubsystemProto subsystems = 14;
+  repeated IODeviceProto io_devices = 15;
+  repeated MaterialLocationProto material_locations = 16;
+}
+
+// IODevice 타입
+message IODeviceProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  repeated LogicalElementProto logical_elements = 5;
+  
+  string element_type = 6;
+  string supplier = 7;
+  string make = 8;
+  string model = 9;
+  string model_revision = 10;
+  string function = 11;
+  string immutable_id = 12;
+  repeated SoftwareModuleProto software_modules = 13;
+  
+  oneof value {
+    bool bool_value = 14;
+    double double_value = 15;
+    float float_value = 16;
+    int32 int32_value = 17;
+    int64 int64_value = 18;
+    string string_value = 19;
+  }
+}
+
+// LogicalElement 타입
+message LogicalElementProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  string element_type = 5;
+}
+
+// MaterialLocation 타입
+message MaterialLocationProto {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  repeated ExtensionProto extensions = 4;
+  MaterialTypeEnum material_type = 5;
+  string material_sub_type = 6;
+}
+
+// SoftwareModule 타입
+message SoftwareModuleProto {
+  string name = 1;
+  string supplier = 2;
+  string description = 3;
+  string version = 4;
+}
+
+// Extension 타입
+message ExtensionProto {
+  string extension_type = 1;
+  string extension_data = 2;
+}
+
+// 열거형 정의
+enum ProcessTypeEnum {
+  PROCESS_TYPE_UNKNOWN = 0;
+  PROCESS_TYPE_MEASUREMENT = 1;
+  PROCESS_TYPE_PROCESS = 2;
+  PROCESS_TYPE_STORAGE = 3;
+  PROCESS_TYPE_TRANSPORT = 4;
+}
+
+enum MaterialTypeEnum {
+  MATERIAL_TYPE_UNKNOWN = 0;
+  MATERIAL_TYPE_CARRIER = 1;
+  MATERIAL_TYPE_SUBSTRATE = 2;
+  MATERIAL_TYPE_PROCESS_DURABLE = 3;
+  MATERIAL_TYPE_CONSUMABLE = 4;
+  MATERIAL_TYPE_OTHER = 5;
+}
+
+// CEM 서비스 정의
+service CemService {
+  // 장비 정보 조회
+  rpc GetEquipment(GetEquipmentRequest) returns (EquipmentProto);
+  
+  // 특정 모듈 정보 조회
+  rpc GetModule(GetModuleRequest) returns (ModuleProto);
+  
+  // IO 장치 값 읽기
+  rpc ReadIODeviceValue(ReadIODeviceRequest) returns (ReadIODeviceResponse);
+  
+  // IO 장치 값 쓰기
+  rpc WriteIODeviceValue(WriteIODeviceRequest) returns (WriteIODeviceResponse);
+}
+
+// 서비스 요청/응답 메시지
+message GetEquipmentRequest {
+  string equipment_id = 1;
+}
+
+message GetModuleRequest {
+  string equipment_id = 1;
+  string module_id = 2;
+}
+
+message ReadIODeviceRequest {
+  string device_path = 1;  // 예: "Equipment1.Modules.Chamber1.IODevices.PressureSensor"
+}
+
+message ReadIODeviceResponse {
+  bool success = 1;
+  string error_message = 2;
+  IODeviceProto device = 3;
+}
+
+message WriteIODeviceRequest {
+  string device_path = 1;
+  oneof value {
+    bool bool_value = 2;
+    double double_value = 3;
+    float float_value = 4;
+    int32 int32_value = 5;
+    int64 int64_value = 6;
+    string string_value = 7;
+  }
+}
+
+message WriteIODeviceResponse {
+  bool success = 1;
+  string error_message = 2;
+}

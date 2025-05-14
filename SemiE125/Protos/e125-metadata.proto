@@ -1,0 +1,78 @@
+﻿// e125-metadata.proto - 새 파일
+syntax = "proto3";
+
+option csharp_namespace = "SemiE125.Protobuf";
+
+package semiE125;
+
+// 장비 메타데이터 서비스
+service MetadataService {
+  // 장비 메타데이터 조회
+  rpc GetEquipmentMetadata(GetEquipmentMetadataRequest) returns (EquipmentMetadataResponse);
+  
+  // 메타데이터 항목 조회
+  rpc GetMetadataItem(GetMetadataItemRequest) returns (MetadataItemResponse);
+  
+  // 메타데이터 항목 검색
+  rpc FindMetadataItems(FindMetadataItemsRequest) returns (FindMetadataItemsResponse);
+}
+
+// 장비 메타데이터 조회 요청
+message GetEquipmentMetadataRequest {
+  string equipment_uid = 1;
+}
+
+// 장비 메타데이터 응답
+message EquipmentMetadataResponse {
+  bool success = 1;
+  string error_message = 2;
+  EquipmentMetadataProto metadata = 3;
+}
+
+// 메타데이터 항목 조회 요청
+message GetMetadataItemRequest {
+  string equipment_uid = 1;
+  string item_id = 2;
+}
+
+// 메타데이터 항목 응답
+message MetadataItemResponse {
+  bool success = 1;
+  string error_message = 2;
+  MetadataItemProto item = 3;
+}
+
+// 메타데이터 항목 검색 요청
+message FindMetadataItemsRequest {
+  string equipment_uid = 1;
+  string item_type = 2;
+  string name_pattern = 3;
+}
+
+// 메타데이터 항목 검색 응답
+message FindMetadataItemsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated MetadataItemProto items = 3;
+}
+
+// 장비 메타데이터 프로토
+message EquipmentMetadataProto {
+  string equipment_uid = 1;
+  string equipment_name = 2;
+  string metadata_version = 3;
+  int64 created_timestamp = 4;
+  int64 last_modified_timestamp = 5;
+  map<string, string> attributes = 6;
+  repeated MetadataItemProto items = 7;
+}
+
+// 메타데이터 항목 프로토
+message MetadataItemProto {
+  string item_id = 1;
+  string item_name = 2;
+  string item_type = 3;
+  string description = 4;
+  string data_source_uid = 5;
+  map<string, string> attributes = 6;
+}

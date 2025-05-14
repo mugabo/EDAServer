@@ -1,0 +1,90 @@
+﻿// e125.proto
+syntax = "proto3";
+
+option csharp_namespace = "SemiE125.Protobuf";
+
+package semiE125;
+
+// 데이터 소스 정의
+message DataSourceDefinition {
+  string uid = 1;
+  string name = 2;
+  string description = 3;
+  DataSourceType source_type = 4;
+  string source_path = 5;
+  string data_type = 6;
+  int32 sampling_rate = 7;
+  bool is_enabled = 8;
+  int32 priority = 9;
+}
+
+enum DataSourceType {
+  DATA_SOURCE_TYPE_UNKNOWN = 0;
+  DATA_SOURCE_TYPE_OPCUA = 1;
+  DATA_SOURCE_TYPE_DIRECT_IO = 2;
+  DATA_SOURCE_TYPE_FILE = 3;
+  DATA_SOURCE_TYPE_DATABASE = 4;
+  DATA_SOURCE_TYPE_CUSTOM = 5;
+}
+
+// 데이터 수집 요청
+message CollectDataRequest {
+  string data_source_uid = 1;
+  int32 sample_count = 2;
+  int32 compression_level = 3;
+}
+
+// 데이터 수집 응답
+message CollectDataResponse {
+  bool success = 1;
+  string error_message = 2;
+  bytes data = 3;
+  int64 timestamp = 4;
+}
+
+// 데이터 소스 등록 응답
+message RegisterDataSourceResponse {
+  bool success = 1;
+  string error_message = 2;
+  string data_source_uid = 3;
+}
+
+// 데이터 소스 목록 조회 요청
+message GetDataSourcesRequest {
+  string equipment_uid = 1;
+}
+
+// 데이터 소스 목록 조회 응답
+message GetDataSourcesResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated DataSourceDefinition data_sources = 3;
+}
+
+// 데이터 스트림 구독 요청
+message SubscribeToDataStreamRequest {
+  repeated string data_source_uids = 1;
+  int32 sample_interval_ms = 2;
+}
+
+// 데이터 스트림 응답
+message DataStreamResponse {
+  string data_source_uid = 1;
+  int64 timestamp = 2;
+  bytes data = 3;
+}
+
+// E125 데이터 수집 서비스
+service DataCollectionService {
+  // 데이터 소스 등록
+  rpc RegisterDataSource(DataSourceDefinition) returns (RegisterDataSourceResponse);
+  
+  // 데이터 수집
+  rpc CollectData(CollectDataRequest) returns (CollectDataResponse);
+  
+  // 데이터 소스 목록 조회
+  rpc GetDataSources(GetDataSourcesRequest) returns (GetDataSourcesResponse);
+  
+  // 데이터 스트림 수신
+  rpc SubscribeToDataStream(SubscribeToDataStreamRequest) returns (stream DataStreamResponse);
+}
