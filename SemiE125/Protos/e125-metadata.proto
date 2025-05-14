@@ -1,4 +1,4 @@
-﻿// e125-metadata.proto - 새 파일
+﻿// e125-metadata.proto
 syntax = "proto3";
 
 option csharp_namespace = "SemiE125.Protobuf";
@@ -9,12 +9,18 @@ package semiE125;
 service MetadataService {
   // 장비 메타데이터 조회
   rpc GetEquipmentMetadata(GetEquipmentMetadataRequest) returns (EquipmentMetadataResponse);
-  
-  // 메타데이터 항목 조회
   rpc GetMetadataItem(GetMetadataItemRequest) returns (MetadataItemResponse);
-  
-  // 메타데이터 항목 검색
   rpc FindMetadataItems(FindMetadataItemsRequest) returns (FindMetadataItemsResponse);
+  
+  rpc GetUnits(GetUnitsRequest) returns (GetUnitsResponse);
+  rpc GetTypeDefinitions(GetTypeDefinitionsRequest) returns (GetTypeDefinitionsResponse);
+  rpc GetStateMachines(GetStateMachinesRequest) returns (GetStateMachinesResponse);
+  rpc GetSEMIObjTypes(GetSEMIObjTypesRequest) returns (GetSEMIObjTypesResponse);
+  rpc GetExceptions(GetExceptionsRequest) returns (GetExceptionsResponse);
+  rpc GetParameters(GetParametersRequest) returns (GetParametersResponse);
+  rpc GetSimpleEvents(GetSimpleEventsRequest) returns (GetSimpleEventsResponse);
+  rpc GetEquipmentStructure(GetEquipmentStructureRequest) returns (GetEquipmentStructureResponse);
+  rpc GetEquipmentNodeDescriptions(GetEquipmentNodeDescriptionsRequest) returns (GetEquipmentNodeDescriptionsResponse);
 }
 
 // 장비 메타데이터 조회 요청
@@ -75,4 +81,230 @@ message MetadataItemProto {
   string description = 4;
   string data_source_uid = 5;
   map<string, string> attributes = 6;
+}
+
+// 단위 메타데이터 요청 메시지
+message GetUnitsRequest {
+  string equipment_uid = 1;
+}
+
+// 단위 메타데이터 응답 메시지
+message GetUnitsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated UnitDefinition units = 3;
+}
+
+message UnitDefinition {
+  string unit_id = 1;
+  string unit_name = 2;
+  string unit_symbol = 3;
+  string description = 4;
+  map<string, string> attributes = 5;
+}
+
+// 유형 정의 메타데이터
+message GetTypeDefinitionsRequest {
+  string equipment_uid = 1;
+}
+
+message GetTypeDefinitionsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated TypeDefinition type_definitions = 3;
+}
+
+message TypeDefinition {
+  string type_id = 1;
+  string type_name = 2;
+  string base_type = 3;
+  string description = 4;
+  repeated TypeProperty properties = 5;
+  map<string, string> attributes = 6;
+}
+
+message TypeProperty {
+  string property_name = 1;
+  string property_type = 2;
+  bool is_required = 3;
+  string description = 4;
+  string default_value = 5;
+  string unit_id = 6;
+}
+
+// 상태 머신 메타데이터
+message GetStateMachinesRequest {
+  string equipment_uid = 1;
+}
+
+message GetStateMachinesResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated StateMachineDefinition state_machines = 3;
+}
+
+message StateMachineDefinition {
+  string state_machine_id = 1;
+  string state_machine_name = 2;
+  string description = 3;
+  repeated StateDefinition states = 4;
+  repeated TransitionDefinition transitions = 5;
+  map<string, string> attributes = 6;
+}
+
+message StateDefinition {
+  string state_id = 1;
+  string state_name = 2;
+  string description = 3;
+  bool is_initial_state = 4;
+}
+
+message TransitionDefinition {
+  string transition_id = 1;
+  string from_state_id = 2;
+  string to_state_id = 3;
+  string event_trigger = 4;
+  string description = 5;
+}
+
+// SEMI ObjType 메타데이터
+message GetSEMIObjTypesRequest {
+  string equipment_uid = 1;
+}
+
+message GetSEMIObjTypesResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated SEMIObjTypeDefinition obj_types = 3;
+}
+
+message SEMIObjTypeDefinition {
+  string obj_type_id = 1;
+  string obj_type_name = 2;
+  string standard_reference = 3;
+  string description = 4;
+  map<string, string> attributes = 5;
+}
+
+// 예외 메타데이터
+message GetExceptionsRequest {
+  string equipment_uid = 1;
+}
+
+message GetExceptionsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated ExceptionDefinition exceptions = 3;
+}
+
+message ExceptionDefinition {
+  string exception_id = 1;
+  string exception_name = 2;
+  string exception_code = 3;
+  string severity = 4;
+  string description = 5;
+  map<string, string> attributes = 6;
+}
+
+message GetParametersRequest {
+  string equipment_uid = 1;
+  string node_id = 2;
+}
+
+message GetParametersResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated ParameterDefinition parameters = 3;
+}
+
+message ParameterDefinition {
+  string parameter_id = 1;
+  string parameter_name = 2;
+  string data_type = 3;
+  string default_value = 4;
+  string min_value = 5;
+  string max_value = 6;
+  string unit_id = 7;
+  string node_id = 8;
+  string description = 9;
+  bool read_only = 10;
+  map<string, string> attributes = 11;
+}
+
+// 간단한 이벤트 메타데이터
+message GetSimpleEventsRequest {
+  string equipment_uid = 1;
+  string node_id = 2;
+}
+
+message GetSimpleEventsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated SimpleEventDefinition events = 3;
+}
+
+message SimpleEventDefinition {
+  string event_id = 1;
+  string event_name = 2;
+  string event_type = 3;
+  string description = 4;
+  string node_id = 5;
+  map<string, string> attributes = 6;
+}
+
+// 장비 구조 메타데이터
+message GetEquipmentStructureRequest {
+  string equipment_uid = 1;
+}
+
+message GetEquipmentStructureResponse {
+  bool success = 1;
+  string error_message = 2;
+  EquipmentStructure equipment_structure = 3;
+}
+
+message EquipmentStructure {
+  string equipment_uid = 1;
+  string equipment_name = 2;
+  string equipment_type = 3;
+  string description = 4;
+  repeated EquipmentNode modules = 5;
+  repeated EquipmentNode subsystems = 6;
+  repeated EquipmentNode io_devices = 7;
+  map<string, string> attributes = 8;
+}
+
+message EquipmentNode {
+  string node_id = 1;
+  string node_name = 2;
+  string node_type = 3;
+  string description = 4;
+  repeated EquipmentNode children = 5;
+  map<string, string> attributes = 6;
+}
+
+// 장비 노드 설명 메타데이터
+message GetEquipmentNodeDescriptionsRequest {
+  string equipment_uid = 1;
+  repeated string node_ids = 2;  // 설명을 검색할 노드 ID 목록
+}
+
+message GetEquipmentNodeDescriptionsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated EquipmentNodeDescription node_descriptions = 3;
+  repeated string unrecognized_node_ids = 4;  // 인식할 수 없는 노드 ID 목록
+}
+
+message EquipmentNodeDescription {
+  string node_id = 1;
+  string node_name = 2;
+  string node_type = 3;
+  string description = 4;
+  repeated string parameter_ids = 5;  // 이 노드와 관련된 매개변수 ID
+  repeated string exception_ids = 6;  // 이 노드와 관련된 예외 ID
+  repeated string obj_type_ids = 7;   // 이 노드와 관련된 ObjType ID
+  repeated string state_machine_ids = 8; // 이 노드와 관련된 상태 머신 ID
+  repeated string simple_event_ids = 9; // 이 노드와 관련된 간단한 이벤트 ID
+  map<string, string> attributes = 10;
 }

@@ -76,9 +76,6 @@ message DataStreamResponse {
 
 // E125 데이터 수집 서비스
 service DataCollectionService {
-  // 데이터 소스 등록
-  rpc RegisterDataSource(DataSourceDefinition) returns (RegisterDataSourceResponse);
-  
   // 데이터 수집
   rpc CollectData(CollectDataRequest) returns (CollectDataResponse);
   

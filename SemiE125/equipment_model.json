@@ -2,7 +2,7 @@
   "equipment": {
     "uid": "WLP",
     "name": "WLP",
-    "description": "300mm Semiconductor",
+    "description": "300mm Semiconductor Wafer-Level Packaging System",
     "elementType": "Process",
     "supplier": "H&Iruja",
     "processName": "Sputter",
@@ -10,40 +10,320 @@
     "recipeType": "Sputter",
     "modules": [
       {
-        "uid": "Chamber3",
+        "uid": "LUM1",
+        "name": "LUM1",
+        "description": "Load/Unload Module 1",
+        "elementType": "Transport",
+        "processName": "Load/Unload",
+        "processType": "Transport",
+        "ioDevices": [
+          {
+            "uid": "LUM1-TMP-01",
+            "name": "TurboMolecularPump",
+            "description": "LUM1 Turbo Molecular Pump",
+            "elementType": "Pump"
+          }
+        ],
+        "materialLocations": [
+          {
+            "uid": "LUM1-ML-001",
+            "name": "WaferSlot",
+            "description": "Wafer Loading Position",
+            "materialType": "Substrate",
+            "materialSubType": "300mm Wafer"
+          }
+        ]
+      },
+      {
+        "uid": "LUM2",
+        "name": "LUM2",
+        "description": "Load/Unload Module 2",
+        "elementType": "Transport",
+        "processName": "Load/Unload",
+        "processType": "Transport",
+        "ioDevices": [
+          {
+            "uid": "LUM2-TMP-01",
+            "name": "TurboMolecularPump",
+            "description": "LUM2 Turbo Molecular Pump",
+            "elementType": "Pump"
+          }
+        ],
+        "materialLocations": [
+          {
+            "uid": "LUM2-ML-001",
+            "name": "WaferSlot",
+            "description": "Wafer Loading Position",
+            "materialType": "Substrate",
+            "materialSubType": "300mm Wafer"
+          }
+        ]
+      },
+      {
+        "uid": "PMC3",
         "name": "Degas",
-        "description": "Degas Chamber",
+        "description": "Degas Chamber with 8-stage Cassette",
         "elementType": "Process Area",
         "processName": "Degas",
         "processType": "Process",
         "ioDevices": [
           {
-            "uid": "PressureSensor-1",
+            "uid": "PMC3-PressureSensor-01",
             "name": "PressureSensor",
             "description": "Chamber Pressure Sensor",
             "elementType": "Sensor"
+          },
+          {
+            "uid": "PMC3-TempController-01",
+            "name": "TemperatureController",
+            "description": "Temperature Controller for 8-stage Cassette",
+            "elementType": "Controller"
           }
         ],
         "materialLocations": [
           {
-            "uid": "WaferSlot-202",
+            "uid": "PMC3-WaferSlot-001",
+            "name": "WaferSlot",
+            "description": "Wafer Processing Position (8-stage Cassette)",
+            "materialType": "Substrate",
+            "materialSubType": "300mm Wafer"
+          }
+        ]
+      },
+      {
+        "uid": "PMC4",
+        "name": "Pre-clean",
+        "description": "Pre-clean Chamber",
+        "elementType": "Process Area",
+        "processName": "Pre-clean",
+        "processType": "Process",
+        "ioDevices": [
+          {
+            "uid": "PMC4-PressureSensor-01",
+            "name": "PressureSensor",
+            "description": "Chamber Pressure Sensor",
+            "elementType": "Sensor"
+          },
+          {
+            "uid": "PMC4-RFGenerator-01",
+            "name": "RFGenerator",
+            "description": "RF Generator for Plasma Generation",
+            "elementType": "Generator"
+          },
+          {
+            "uid": "PMC4-MFC-01",
+            "name": "MFC_H2",
+            "description": "Mass Flow Controller for H2",
+            "elementType": "Controller"
+          },
+          {
+            "uid": "PMC4-MFC-02",
+            "name": "MFC_Ar",
+            "description": "Mass Flow Controller for Ar",
+            "elementType": "Controller"
+          },
+          {
+            "uid": "PMC4-MFC-03",
+            "name": "MFC_N2",
+            "description": "Mass Flow Controller for N2",
+            "elementType": "Controller"
+          },
+          {
+            "uid": "PMC4-MFC-04",
+            "name": "MFC_He",
+            "description": "Mass Flow Controller for He",
+            "elementType": "Controller"
+          }
+        ],
+        "materialLocations": [
+          {
+            "uid": "PMC4-WaferSlot-001",
             "name": "WaferSlot",
             "description": "Wafer Processing Position",
             "materialType": "Substrate",
             "materialSubType": "300mm Wafer"
           }
         ]
+      },
+      {
+        "uid": "PMC6",
+        "name": "PVD_Ti",
+        "description": "Physical Vapor Deposition Chamber for Titanium",
+        "elementType": "Process Area",
+        "processName": "Sputtering",
+        "processType": "Process",
+        "ioDevices": [
+          {
+            "uid": "PMC6-PressureSensor-01",
+            "name": "PressureSensor",
+            "description": "Chamber Pressure Sensor",
+            "elementType": "Sensor"
+          },
+          {
+            "uid": "PMC6-DCPower-01",
+            "name": "DCPowerSupply",
+            "description": "DC Power Supply for Sputtering",
+            "elementType": "Power"
+          },
+          {
+            "uid": "PMC6-MFC-01",
+            "name": "MFC_Ar",
+            "description": "Mass Flow Controller for Ar",
+            "elementType": "Controller"
+          },
+          {
+            "uid": "PMC6-HeaterController-01",
+            "name": "HeaterController",
+            "description": "Heater Controller for Pedestal",
+            "elementType": "Controller"
+          }
+        ],
+        "materialLocations": [
+          {
+            "uid": "PMC6-WaferSlot-001",
+            "name": "WaferSlot",
+            "description": "Wafer Processing Position",
+            "materialType": "Substrate",
+            "materialSubType": "300mm Wafer"
+          },
+          {
+            "uid": "PMC6-Target-001",
+            "name": "TiTarget",
+            "description": "Titanium Target",
+            "materialType": "ProcessDurable",
+            "materialSubType": "Sputtering Target"
+          }
+        ]
+      },
+      {
+        "uid": "PMC7",
+        "name": "PVD_Cu",
+        "description": "Physical Vapor Deposition Chamber for Copper",
+        "elementType": "Process Area",
+        "processName": "Sputtering",
+        "processType": "Process",
+        "ioDevices": [
+          {
+            "uid": "PMC7-PressureSensor-01",
+            "name": "PressureSensor",
+            "description": "Chamber Pressure Sensor",
+            "elementType": "Sensor"
+          },
+          {
+            "uid": "PMC7-DCPower-01",
+            "name": "DCPowerSupply",
+            "description": "DC Power Supply for Sputtering",
+            "elementType": "Power"
+          },
+          {
+            "uid": "PMC7-MFC-01",
+            "name": "MFC_Ar",
+            "description": "Mass Flow Controller for Ar",
+            "elementType": "Controller"
+          },
+          {
+            "uid": "PMC7-HeaterController-01",
+            "name": "HeaterController",
+            "description": "Heater Controller for Pedestal",
+            "elementType": "Controller"
+          }
+        ],
+        "materialLocations": [
+          {
+            "uid": "PMC7-WaferSlot-001",
+            "name": "WaferSlot",
+            "description": "Wafer Processing Position",
+            "materialType": "Substrate",
+            "materialSubType": "300mm Wafer"
+          },
+          {
+            "uid": "PMC7-Target-001",
+            "name": "CuTarget",
+            "description": "Copper Target",
+            "materialType": "ProcessDurable",
+            "materialSubType": "Sputtering Target"
+          }
+        ]
       }
     ],
     "subsystems": [
       {
-        "uid": "GasSystem-789",
-        "name": "GasSystem",
-        "description": "Gas Distribution System",
-        "elementType": "Gas Distributor"
+        "uid": "EFEM",
+        "name": "EFEM",
+        "description": "Equipment Front End Module",
+        "elementType": "Transport",
+        "ioDevices": [
+          {
+            "uid": "EFEM-Robot-01",
+            "name": "ATMRobot",
+            "description": "Atmospheric Robot for Wafer Handling",
+            "elementType": "Robot"
+          },
+          {
+            "uid": "EFEM-Aligner-01",
+            "name": "PreAligner",
+            "description": "Wafer Pre-Aligner",
+            "elementType": "Aligner"
+          }
+        ],
+        "materialLocations": [
+          {
+            "uid": "EFEM-LP-001",
+            "name": "LoadPort1",
+            "description": "Wafer FOUP LoadPort 1",
+            "materialType": "Carrier",
+            "materialSubType": "FOUP"
+          },
+          {
+            "uid": "EFEM-LP-003",
+            "name": "LoadPort3",
+            "description": "Wafer FOUP LoadPort 3",
+            "materialType": "Carrier",
+            "materialSubType": "FOUP"
+          }
+        ]
       },
       {
-        "uid": "Statistics-999",
+        "uid": "TRM",
+        "name": "TRM",
+        "description": "Transfer Module",
+        "elementType": "Transport",
+        "ioDevices": [
+          {
+            "uid": "TRM-Robot-01",
+            "name": "VacuumRobot",
+            "description": "Vacuum Robot for Wafer Handling",
+            "elementType": "Robot"
+          },
+          {
+            "uid": "TRM-PressureSensor-01",
+            "name": "PressureSensor",
+            "description": "TRM Pressure Sensor",
+            "elementType": "Sensor"
+          },
+          {
+            "uid": "TRM-CryoPump-01",
+            "name": "CryoPump",
+            "description": "Cryo Pump for TRM",
+            "elementType": "Pump"
+          },
+          {
+            "uid": "TRM-MFC-01",
+            "name": "MFC_Ar",
+            "description": "Mass Flow Controller for Ar",
+            "elementType": "Controller"
+          }
+        ]
+      },
+      {
+        "uid": "GasSystem",
+        "name": "GasSystem",
+        "description": "Gas Distribution System",
+        "elementType": "Gas Distributor",
+        "ioDevices": []
+      },
+      {
+        "uid": "Statistics",
         "name": "Statistics",
         "description": "Equipment Statistics",
         "elementType": "Control",

@@ -43,8 +43,10 @@ class Program
             equipmentMetadataManager);
 
         var dataCollectionService = new DataCollectionServiceImpl(
-            dataSourceRepository,
-            cemIntegrationManager);  // CEM 통합 매니저 전달
+            new ConsoleLogger<DataCollectionServiceImpl>(Microsoft.Extensions.Logging.LogLevel.Information), // 첫 번째: logger
+            dataSourceRepository,  // 두 번째: dataSourceRepository
+            cemIntegrationManager  // 세 번째: cemIntegrationManager (선택적)
+        );
 
         // 서버 설정
         var server = new Server

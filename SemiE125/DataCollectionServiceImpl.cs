@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SemiE125.Core.DataCollection;
 using SemiE125.Core.E120Integration;
-using SemiE125.Tests;
+using Microsoft.Extensions.Logging;
 using CoreModel = SemiE125.Core.DataCollection;
 using ProtoModel = SemiE125.Protobuf;
 
@@ -16,129 +20,169 @@ namespace SemiE125.Services
         private readonly ISamplingStrategy _samplingStrategy;
         private readonly ICompressionAlgorithm _compressionAlgorithm;
         private readonly CemIntegrationManager _cemIntegrationManager;
+        private readonly ILogger<DataCollectionServiceImpl> _logger;
+        private readonly string _equipmentModelPath;
 
-        private readonly Dictionary<string, CoreModel.DataSourceDefinition> _dataSources =
-            new Dictionary<string, CoreModel.DataSourceDefinition>();
-        private readonly Dictionary<string, CoreModel.DataCollectionPipeline> _pipelines =
-            new Dictionary<string, CoreModel.DataCollectionPipeline>();
-
-        public DataCollectionServiceImpl()
+        public DataCollectionServiceImpl(
+            ILogger<DataCollectionServiceImpl> logger,
+            IDataSourceRepository dataSourceRepository,
+            CemIntegrationManager cemIntegrationManager = null)
         {
-            _dataSourceRepository = new InMemoryDataSourceRepository();
-            _samplingStrategy = new SemiE125.Core.DataCollection.DefaultSamplingStrategy();
-            _compressionAlgorithm = new SemiE125.Core.DataCollection.NoCompressionAlgorithm();
-        }
-
-        // 데이터 소스 리포지토리만 받는 생성자
-        public DataCollectionServiceImpl(IDataSourceRepository dataSourceRepository, CemIntegrationManager cemIntegrationManager = null)
-        {
+            _logger = logger;
             _dataSourceRepository = dataSourceRepository ?? throw new ArgumentNullException(nameof(dataSourceRepository));
             _samplingStrategy = new SemiE125.Core.DataCollection.DefaultSamplingStrategy();
             _compressionAlgorithm = new SemiE125.Core.DataCollection.NoCompressionAlgorithm();
             _cemIntegrationManager = cemIntegrationManager;
+
+            // equipment_model.json 파일 경로 설정
+            _equipmentModelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "equipment_model.json");
+
+            // 서비스 시작 시 equipment_model.json에서 데이터 소스 로드
+            LoadDataSourcesFromEquipmentModel();
         }
 
-        public class InMemoryDataSourceRepository : IDataSourceRepository
-        {
-            private readonly Dictionary<string, DataSourceDefinition> _dataSources =
-                new Dictionary<string, DataSourceDefinition>();
-
-            public Task<DataSourceDefinition> GetByIdAsync(string id)
-            {
-                if (_dataSources.TryGetValue(id, out var dataSource))
-                {
-                    return Task.FromResult(dataSource);
-                }
-
-                return Task.FromResult<DataSourceDefinition>(null);
-            }
-
-            public Task<IEnumerable<DataSourceDefinition>> GetAllAsync()
-            {
-                return Task.FromResult<IEnumerable<DataSourceDefinition>>(_dataSources.Values);
-            }
-
-            public Task<string> AddAsync(DataSourceDefinition dataSource)
-            {
-                if (string.IsNullOrEmpty(dataSource.Uid))
-                {
-                    dataSource.Uid = Guid.NewGuid().ToString();
-                }
-
-                _dataSources[dataSource.Uid] = dataSource;
-                return Task.FromResult(dataSource.Uid);
-            }
-
-            public Task<bool> UpdateAsync(DataSourceDefinition dataSource)
-            {
-                if (string.IsNullOrEmpty(dataSource.Uid) || !_dataSources.ContainsKey(dataSource.Uid))
-                {
-                    return Task.FromResult(false);
-                }
-
-                _dataSources[dataSource.Uid] = dataSource;
-                return Task.FromResult(true);
-            }
-
-            public Task<bool> DeleteAsync(string id)
-            {
-                return Task.FromResult(_dataSources.Remove(id));
-            }
-        }
-
-        // 모든 의존성을 받는 생성자
-        public DataCollectionServiceImpl(
-            IDataSourceRepository dataSourceRepository,
-            ISamplingStrategy samplingStrategy,
-            ICompressionAlgorithm compressionAlgorithm)
-        {
-            _dataSourceRepository = dataSourceRepository ?? throw new ArgumentNullException(nameof(dataSourceRepository));
-            _samplingStrategy = samplingStrategy ?? throw new ArgumentNullException(nameof(samplingStrategy));
-            _compressionAlgorithm = compressionAlgorithm ?? throw new ArgumentNullException(nameof(compressionAlgorithm));
-        }
-
-        public override Task<ProtoModel.RegisterDataSourceResponse> RegisterDataSource(
-            ProtoModel.DataSourceDefinition request, ServerCallContext context)
+        // equipment_model.json 파일에서 데이터 소스 로드
+        private void LoadDataSourcesFromEquipmentModel()
         {
             try
             {
-                var dataSource = new CoreModel.DataSourceDefinition
-                {
-                    Uid = string.IsNullOrEmpty(request.Uid) ? Guid.NewGuid().ToString() : request.Uid,
-                    Name = request.Name,
-                    Description = request.Description,
-                    SourcePath = request.SourcePath,
-                    SourceType = ConvertDataSourceType(request.SourceType),
-                    DataType = request.DataType,
-                    SamplingRate = request.SamplingRate,
-                    IsEnabled = request.IsEnabled,
-                    Priority = request.Priority
-                };
+                _logger.LogInformation($"equipment_model.json에서 데이터 소스 로드 시작: {_equipmentModelPath}");
 
-                _dataSources[dataSource.Uid] = dataSource;
-
-                return Task.FromResult(new ProtoModel.RegisterDataSourceResponse
+                if (!File.Exists(_equipmentModelPath))
                 {
-                    Success = true,
-                    DataSourceUid = dataSource.Uid
-                });
+                    _logger.LogWarning($"equipment_model.json 파일을 찾을 수 없습니다: {_equipmentModelPath}");
+                    return;
+                }
+
+                // JSON 파일 읽기
+                string jsonContent = File.ReadAllText(_equipmentModelPath);
+                var equipmentModel = JObject.Parse(jsonContent);
+
+                // 장비 기본 정보
+                var equipment = equipmentModel["equipment"];
+                string equipmentUid = equipment["uid"].ToString();
+
+                // 데이터 소스 목록 초기화
+                List<DataSourceDefinition> dataSources = new List<DataSourceDefinition>();
+
+                // 모듈에서 IO 장치 추출
+                if (equipment["modules"] != null)
+                {
+                    foreach (var module in equipment["modules"])
+                    {
+                        string moduleId = module["uid"].ToString();
+
+                        // 모듈의 IO 장치 처리
+                        if (module["ioDevices"] != null)
+                        {
+                            foreach (var ioDevice in module["ioDevices"])
+                            {
+                                AddDataSourceFromIODevice(dataSources, ioDevice, moduleId, equipmentUid);
+                            }
+                        }
+                    }
+                }
+
+                // 서브시스템에서 IO 장치 추출
+                if (equipment["subsystems"] != null)
+                {
+                    foreach (var subsystem in equipment["subsystems"])
+                    {
+                        string subsystemId = subsystem["uid"].ToString();
+
+                        // 서브시스템의 IO 장치 처리
+                        if (subsystem["ioDevices"] != null)
+                        {
+                            foreach (var ioDevice in subsystem["ioDevices"])
+                            {
+                                AddDataSourceFromIODevice(dataSources, ioDevice, subsystemId, equipmentUid);
+                            }
+                        }
+                    }
+                }
+
+                // 데이터 소스 저장소에 추가
+                foreach (var dataSource in dataSources)
+                {
+                    _dataSourceRepository.AddAsync(dataSource).Wait();
+                }
+
+                _logger.LogInformation($"equipment_model.json에서 {dataSources.Count}개의 데이터 소스를 로드했습니다.");
             }
             catch (Exception ex)
             {
-                return Task.FromResult(new ProtoModel.RegisterDataSourceResponse
-                {
-                    Success = false,
-                    ErrorMessage = ex.Message
-                });
+                _logger.LogError(ex, $"equipment_model.json에서 데이터 소스 로드 중 오류 발생: {ex.Message}");
             }
         }
+
+        // IO 장치에서 데이터 소스 생성
+        private void AddDataSourceFromIODevice(List<DataSourceDefinition> dataSources, JToken ioDevice, string parentId, string equipmentUid)
+        {
+            string deviceId = ioDevice["uid"].ToString();
+            string deviceName = ioDevice["name"].ToString();
+            string deviceType = ioDevice["elementType"].ToString();
+            string description = ioDevice["description"]?.ToString() ?? $"{deviceName} 데이터 소스";
+
+            // 데이터 타입 추론
+            string dataType = "double"; // 기본값
+            if (deviceType.Contains("Sensor") || deviceType.Contains("Controller"))
+            {
+                if (deviceName.Contains("Pressure"))
+                    dataType = "double";
+                else if (deviceName.Contains("Temperature"))
+                    dataType = "double";
+                else if (deviceName.Contains("Flow") || deviceName.Contains("MFC"))
+                    dataType = "double";
+                else if (deviceName.Contains("Power"))
+                    dataType = "double";
+                else if (deviceName.Contains("Status") || deviceName.Contains("State"))
+                    dataType = "string";
+            }
+
+            // 소스 타입 결정
+            DataSourceType sourceType = DataSourceType.OpcUa; // 기본값
+            if (deviceName.Contains("MFC") || deviceName.Contains("Controller"))
+                sourceType = DataSourceType.OpcUa;
+            else if (deviceType.Contains("Sensor"))
+                sourceType = DataSourceType.OpcUa;
+            else if (deviceType.Contains("Robot"))
+                sourceType = DataSourceType.OpcUa;
+
+            // 소스 경로 생성
+            string sourcePath = $"ns=2;s={parentId}.{deviceId}";
+
+            // 데이터 소스 정의 생성
+            var dataSource = new DataSourceDefinition
+            {
+                Uid = Guid.NewGuid().ToString(),
+                Name = deviceName,
+                Description = description,
+                SourceType = sourceType,
+                SourcePath = sourcePath,
+                DataType = dataType,
+                SamplingRate = 1000, // 기본값: 1초
+                IsEnabled = true,
+                Priority = 1,
+                EquipmentUid = equipmentUid
+            };
+
+            dataSources.Add(dataSource);
+        }
+
+        // RegisterDataSource 메서드 제거 (더 이상 필요 없음)
 
         public override Task<ProtoModel.CollectDataResponse> CollectData(
             ProtoModel.CollectDataRequest request, ServerCallContext context)
         {
             try
             {
-                if (!_dataSources.TryGetValue(request.DataSourceUid, out var dataSource))
+                _logger.LogInformation($"데이터 수집 요청: DataSourceUid={request.DataSourceUid}");
+
+                var dataSourceTask = _dataSourceRepository.GetByIdAsync(request.DataSourceUid);
+                dataSourceTask.Wait();
+                var dataSource = dataSourceTask.Result;
+
+                if (dataSource == null)
                 {
                     return Task.FromResult(new ProtoModel.CollectDataResponse
                     {
@@ -147,8 +191,44 @@ namespace SemiE125.Services
                     });
                 }
 
-                // 실제 데이터 수집 로직 구현
-                var data = new byte[100]; // 임시 데이터
+                // 실제 데이터 수집 로직 구현 - 여기서는 임시 데이터 생성
+                byte[] data;
+                double value = 0;
+
+                // 데이터 소스 유형에 따라 가상 데이터 생성
+                if (dataSource.SourcePath.Contains("Pressure"))
+                {
+                    // 압력 센서 - 가상 데이터 생성 (0.001~0.1 Torr 사이의 임의 값)
+                    value = new Random().NextDouble() * 0.099 + 0.001;
+                    data = BitConverter.GetBytes(value);
+                }
+                else if (dataSource.SourcePath.Contains("Temperature"))
+                {
+                    // 온도 센서 - 가상 데이터 생성 (100~300℃ 사이의 임의 값)
+                    value = new Random().NextDouble() * 200 + 100;
+                    data = BitConverter.GetBytes(value);
+                }
+                else if (dataSource.SourcePath.Contains("MFC"))
+                {
+                    // 가스 유량 컨트롤러 - 가상 데이터 생성 (10~100 sccm 사이의 임의 값)
+                    value = new Random().NextDouble() * 90 + 10;
+                    data = BitConverter.GetBytes(value);
+                }
+                else if (dataSource.SourcePath.Contains("Power"))
+                {
+                    // 전원 공급 장치 - 가상 데이터 생성 (1000~5000W 사이의 임의 값)
+                    value = new Random().NextDouble() * 4000 + 1000;
+                    data = BitConverter.GetBytes(value);
+                }
+                else
+                {
+                    // 기타 센서 - 일반 임의 값 생성 (0~100 사이)
+                    value = new Random().NextDouble() * 100;
+                    data = BitConverter.GetBytes(value);
+                }
+
+                _logger.LogInformation($"데이터 수집 완료: DataSourceUid={request.DataSourceUid}, 값={value}");
+
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
                 return Task.FromResult(new ProtoModel.CollectDataResponse
@@ -160,6 +240,7 @@ namespace SemiE125.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"데이터 수집 중 오류: {ex.Message}");
                 return Task.FromResult(new ProtoModel.CollectDataResponse
                 {
                     Success = false,
@@ -168,30 +249,43 @@ namespace SemiE125.Services
             }
         }
 
-        public override Task<ProtoModel.GetDataSourcesResponse> GetDataSources(
+        public override async Task<ProtoModel.GetDataSourcesResponse> GetDataSources(
             ProtoModel.GetDataSourcesRequest request, ServerCallContext context)
         {
             try
             {
+                _logger.LogInformation($"데이터 소스 목록 요청: EquipmentUid={request.EquipmentUid}");
+
+                // 모든 데이터 소스 가져오기
+                var dataSources = await _dataSourceRepository.GetAllAsync();
+
+                // EquipmentUid로 필터링 (지정된 경우)
+                if (!string.IsNullOrEmpty(request.EquipmentUid))
+                {
+                    dataSources = dataSources.Where(ds => ds.EquipmentUid == request.EquipmentUid).ToList();
+                }
+
                 var response = new ProtoModel.GetDataSourcesResponse
                 {
                     Success = true
                 };
 
-                foreach (var dataSource in _dataSources.Values)
+                foreach (var dataSource in dataSources)
                 {
                     response.DataSources.Add(ConvertToProto(dataSource));
                 }
 
-                return Task.FromResult(response);
+                _logger.LogInformation($"데이터 소스 목록 응답: {response.DataSources.Count}개 데이터 소스 반환");
+                return response;
             }
             catch (Exception ex)
             {
-                return Task.FromResult(new ProtoModel.GetDataSourcesResponse
+                _logger.LogError(ex, $"데이터 소스 목록 조회 중 오류: {ex.Message}");
+                return new ProtoModel.GetDataSourcesResponse
                 {
                     Success = false,
                     ErrorMessage = ex.Message
-                });
+                };
             }
         }
 
@@ -206,25 +300,75 @@ namespace SemiE125.Services
             if (sampleInterval <= 0)
                 sampleInterval = 1000; // 기본값 1초
 
+            _logger.LogInformation($"데이터 스트림 구독 시작: DataSourceUids={string.Join(",", dataSourceUids)}, Interval={sampleInterval}ms");
+
             try
             {
+                // 요청된 데이터 소스 로드
+                var dataSourceTasks = dataSourceUids.Select(uid => _dataSourceRepository.GetByIdAsync(uid)).ToList();
+                await Task.WhenAll(dataSourceTasks);
+
+                var dataSources = dataSourceTasks.Select(task => task.Result).Where(ds => ds != null).ToList();
+
+                if (dataSources.Count == 0)
+                {
+                    _logger.LogWarning("유효한 데이터 소스를 찾을 수 없습니다.");
+                    return;
+                }
+
+                // 스트리밍 시작
+                var random = new Random();
                 while (!context.CancellationToken.IsCancellationRequested)
                 {
-                    foreach (var uid in dataSourceUids)
+                    foreach (var dataSource in dataSources.Where(ds => ds.IsEnabled))
                     {
-                        if (_dataSources.TryGetValue(uid, out var dataSource) && dataSource.IsEnabled)
-                        {
-                            // 실제 데이터 수집 로직 구현
-                            var data = new byte[100]; // 임시 데이터
-                            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                        // 실제 데이터 수집 로직 대신 임시 데이터 생성
+                        double value = 0;
+                        byte[] data;
 
-                            await responseStream.WriteAsync(new ProtoModel.DataStreamResponse
-                            {
-                                DataSourceUid = uid,
-                                Data = Google.Protobuf.ByteString.CopyFrom(data),
-                                Timestamp = timestamp
-                            });
+                        // 데이터 소스 유형에 따라 가상 데이터 생성
+                        if (dataSource.SourcePath.Contains("Pressure"))
+                        {
+                            // 압력 센서 데이터 (0.001~0.1 Torr)
+                            value = random.NextDouble() * 0.099 + 0.001;
+                            data = BitConverter.GetBytes(value);
                         }
+                        else if (dataSource.SourcePath.Contains("Temperature"))
+                        {
+                            // 온도 센서 데이터 (100~300℃)
+                            value = random.NextDouble() * 200 + 100;
+                            data = BitConverter.GetBytes(value);
+                        }
+                        else if (dataSource.SourcePath.Contains("MFC"))
+                        {
+                            // 가스 유량 데이터 (10~100 sccm)
+                            value = random.NextDouble() * 90 + 10;
+                            data = BitConverter.GetBytes(value);
+                        }
+                        else if (dataSource.SourcePath.Contains("Power"))
+                        {
+                            // 전력 데이터 (1000~5000W)
+                            value = random.NextDouble() * 4000 + 1000;
+                            data = BitConverter.GetBytes(value);
+                        }
+                        else
+                        {
+                            // 기타 센서 데이터 (0~100)
+                            value = random.NextDouble() * 100;
+                            data = BitConverter.GetBytes(value);
+                        }
+
+                        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+                        // 스트림으로 데이터 전송
+                        await responseStream.WriteAsync(new ProtoModel.DataStreamResponse
+                        {
+                            DataSourceUid = dataSource.Uid,
+                            Data = Google.Protobuf.ByteString.CopyFrom(data),
+                            Timestamp = timestamp
+                        });
+
+                        _logger.LogDebug($"스트림 데이터 전송: DataSourceUid={dataSource.Uid}, 값={value}");
                     }
 
                     await Task.Delay(sampleInterval);
@@ -232,31 +376,30 @@ namespace SemiE125.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"데이터 스트림 오류: {ex.Message}");
+                _logger.LogError(ex, $"데이터 스트림 제공 중 오류: {ex.Message}");
             }
+
+            _logger.LogInformation("데이터 스트림 구독 종료");
+        }
+
+        // CoreModel.DataSourceDefinition을 ProtoModel.DataSourceDefinition으로 변환
+        private ProtoModel.DataSourceDefinition ConvertToProto(CoreModel.DataSourceDefinition dataSource)
+        {
+            return new ProtoModel.DataSourceDefinition
+            {
+                Uid = dataSource.Uid,
+                Name = dataSource.Name,
+                Description = dataSource.Description ?? "",
+                SourceType = ConvertDataSourceType(dataSource.SourceType),
+                SourcePath = dataSource.SourcePath,
+                DataType = dataSource.DataType,
+                SamplingRate = dataSource.SamplingRate,
+                IsEnabled = dataSource.IsEnabled,
+                Priority = dataSource.Priority
+            };
         }
 
         // 데이터 소스 타입 변환 메서드
-        private CoreModel.DataSourceType ConvertDataSourceType(ProtoModel.DataSourceType sourceType)
-        {
-            switch (sourceType)
-            {
-                case ProtoModel.DataSourceType.Opcua:
-                    return CoreModel.DataSourceType.OpcUa;
-                case ProtoModel.DataSourceType.DirectIo:
-                    return CoreModel.DataSourceType.DirectIO;
-                case ProtoModel.DataSourceType.File:
-                    return CoreModel.DataSourceType.File;
-                case ProtoModel.DataSourceType.Database:
-                    return CoreModel.DataSourceType.Database;
-                case ProtoModel.DataSourceType.Custom:
-                    return CoreModel.DataSourceType.Custom;
-                default:
-                    return CoreModel.DataSourceType.Custom;
-            }
-        }
-
-        // 프로토버프 타입으로 변환
         private ProtoModel.DataSourceType ConvertDataSourceType(CoreModel.DataSourceType sourceType)
         {
             switch (sourceType)
@@ -274,23 +417,6 @@ namespace SemiE125.Services
                 default:
                     return ProtoModel.DataSourceType.Unknown;
             }
-        }
-
-        // CoreModel 객체를 ProtoModel 객체로 변환
-        private ProtoModel.DataSourceDefinition ConvertToProto(CoreModel.DataSourceDefinition dataSource)
-        {
-            return new ProtoModel.DataSourceDefinition
-            {
-                Uid = dataSource.Uid,
-                Name = dataSource.Name,
-                Description = dataSource.Description,
-                SourcePath = dataSource.SourcePath,
-                SourceType = ConvertDataSourceType(dataSource.SourceType),
-                DataType = dataSource.DataType,
-                SamplingRate = dataSource.SamplingRate,
-                IsEnabled = dataSource.IsEnabled,
-                Priority = dataSource.Priority
-            };
         }
     }
 }
