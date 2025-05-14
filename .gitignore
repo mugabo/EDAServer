@@ -3,3 +3,10 @@
 ################################################################################
 
 /.vs
+/packages
+/SemiE120/bin/Debug/netstandard2.1
+/SemiE120/obj
+/SemiE120Test/obj/Debug
+/EDAModeler/obj/Debug
+/SemiE125/bin/Debug/net8.0
+/SemiE125/obj

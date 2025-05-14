@@ -1,0 +1,61 @@
+{
+  "equipment": {
+    "uid": "WLP",
+    "name": "WLP",
+    "description": "300mm Semiconductor",
+    "elementType": "Process",
+    "supplier": "H&Iruja",
+    "processName": "Sputter",
+    "processType": "Process",
+    "recipeType": "Sputter",
+    "modules": [
+      {
+        "uid": "Chamber3",
+        "name": "Degas",
+        "description": "Degas Chamber",
+        "elementType": "Process Area",
+        "processName": "Degas",
+        "processType": "Process",
+        "ioDevices": [
+          {
+            "uid": "PressureSensor-1",
+            "name": "PressureSensor",
+            "description": "Chamber Pressure Sensor",
+            "elementType": "Sensor"
+          }
+        ],
+        "materialLocations": [
+          {
+            "uid": "WaferSlot-202",
+            "name": "WaferSlot",
+            "description": "Wafer Processing Position",
+            "materialType": "Substrate",
+            "materialSubType": "300mm Wafer"
+          }
+        ]
+      }
+    ],
+    "subsystems": [
+      {
+        "uid": "GasSystem-789",
+        "name": "GasSystem",
+        "description": "Gas Distribution System",
+        "elementType": "Gas Distributor"
+      },
+      {
+        "uid": "Statistics-999",
+        "name": "Statistics",
+        "description": "Equipment Statistics",
+        "elementType": "Control",
+        "ioDevices": [
+          {
+            "uid": "ConnectionStatus-001",
+            "name": "ConnectionStatus",
+            "description": "Connection Status",
+            "elementType": "Sensor"
+          }
+        ]
+      }
+    ]
+  }
+}

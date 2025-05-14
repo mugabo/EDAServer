@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Grpc.Core;
 using SemiE125.Core.DataCollection;
+using SemiE125.Core.E120Integration;
 using SemiE125.Tests;
 using CoreModel = SemiE125.Core.DataCollection;
 using ProtoModel = SemiE125.Protobuf;
@@ -14,6 +15,7 @@ namespace SemiE125.Services
         private readonly IDataSourceRepository _dataSourceRepository;
         private readonly ISamplingStrategy _samplingStrategy;
         private readonly ICompressionAlgorithm _compressionAlgorithm;
+        private readonly CemIntegrationManager _cemIntegrationManager;
 
         private readonly Dictionary<string, CoreModel.DataSourceDefinition> _dataSources =
             new Dictionary<string, CoreModel.DataSourceDefinition>();
@@ -28,11 +30,12 @@ namespace SemiE125.Services
         }
 
         // 데이터 소스 리포지토리만 받는 생성자
-        public DataCollectionServiceImpl(IDataSourceRepository dataSourceRepository)
+        public DataCollectionServiceImpl(IDataSourceRepository dataSourceRepository, CemIntegrationManager cemIntegrationManager = null)
         {
             _dataSourceRepository = dataSourceRepository ?? throw new ArgumentNullException(nameof(dataSourceRepository));
             _samplingStrategy = new SemiE125.Core.DataCollection.DefaultSamplingStrategy();
             _compressionAlgorithm = new SemiE125.Core.DataCollection.NoCompressionAlgorithm();
+            _cemIntegrationManager = cemIntegrationManager;
         }
 
         public class InMemoryDataSourceRepository : IDataSourceRepository

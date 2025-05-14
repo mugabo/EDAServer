@@ -7,7 +7,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 
-namespace SemiE120.OpcUaIntegration
+namespace SemiE125.Core.Communication
 {
     public class OpcUaClient : IDisposable
     {

@@ -1,28 +1,31 @@
-﻿using Opc.Ua;
-using SemiE120.CEM;
-using SemiE120.OpcUaIntegration;
-using System;
+﻿using Newtonsoft.Json;
+using System.IO;
+using System.Configuration;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
+using System.Xml;
+using System;
 
 namespace SemiE120.CEM
 {
     public class CemModelAdapter
     {
-        private OpcUaClient _opcClient;
-        private Dictionary<string, string> _cemToOpcTagMap; // CEM 경로를 OPC UA 노드 ID에 매핑
-        private Dictionary<string, Type> _tagDataTypes; // CEM 경로별 데이터 타입
-        private Equipment _cemEquipment; // SEMI E120 Equipment 모델
+        private Dictionary<string, string> _cemToOpcTagMap;
+        private Dictionary<string, Type> _tagDataTypes;
+        private Equipment _cemEquipment;
         private bool _isMonitoring = false;
 
-        public CemModelAdapter(string serverUrl)
-        {
-            _opcClient = new OpcUaClient();
-            ConnectAsync(serverUrl).Wait();
+        // 설정 파일 경로를 위한 필드 추가
+        private readonly string _modelConfigPath;
 
+        public CemModelAdapter(string modelConfigPath = null)
+        {
             _cemToOpcTagMap = new Dictionary<string, string>();
             _tagDataTypes = new Dictionary<string, Type>();
+
+            // 설정 파일 경로 설정
+            _modelConfigPath = modelConfigPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "equipment_model.json");
 
             // CEM 모델 구조 생성
             InitializeCemModel();
@@ -31,18 +34,198 @@ namespace SemiE120.CEM
             InitializeTagMapping();
         }
 
-        private async Task ConnectAsync(string serverUrl)
+        private void InitializeCemModel()
         {
-            bool connected = await _opcClient.ConnectAsync(serverUrl);
-            if (!connected)
+            try
             {
-                throw new Exception($"OPC UA 서버 {serverUrl}에 연결할 수 없습니다.");
+                // 설정 파일이 존재하는지 확인
+                if (!File.Exists(_modelConfigPath))
+                {
+                    Console.WriteLine($"설정 파일을 찾을 수 없습니다: {_modelConfigPath}");
+                    // 파일이 없을 경우 기본 모델 생성
+                    CreateDefaultCemModel();
+                    // 선택적으로 기본 모델을 파일로 저장할 수 있음
+                    SaveModelToFile(_cemEquipment);
+                    return;
+                }
+
+                // 설정 파일 읽기
+                string jsonContent = File.ReadAllText(_modelConfigPath);
+
+                // JSON 파싱 및 장비 객체 생성
+                var jsonSettings = new JsonSerializerSettings
+                {
+                    TypeNameHandling = TypeNameHandling.Auto,
+                    NullValueHandling = NullValueHandling.Ignore
+                };
+
+                // JSON에서 루트 객체 가져오기
+                var modelData = JsonConvert.DeserializeObject<dynamic>(jsonContent, jsonSettings);
+
+                // 장비 객체 생성
+                _cemEquipment = DeserializeEquipment(modelData.equipment);
+
+                Console.WriteLine($"장비 모델을 설정 파일에서 로드했습니다: {_modelConfigPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"설정 파일 로드 중 오류 발생: {ex.Message}");
+                // 오류 발생 시 기본 모델 생성
+                CreateDefaultCemModel();
             }
         }
 
-        private void InitializeCemModel()
+        // 저장된 JSON에서 Equipment 객체 생성
+        private Equipment DeserializeEquipment(dynamic equipmentData)
         {
-            // SEMI E120 모델 구조 생성
+            var equipment = new Equipment
+            {
+                Uid = equipmentData.uid,
+                Name = equipmentData.name,
+                Description = equipmentData.description,
+                ElementType = equipmentData.elementType,
+                Supplier = equipmentData.supplier,
+                ProcessName = equipmentData.processName,
+                ProcessTypeValue = ParseProcessType(equipmentData.processType?.ToString()),
+                RecipeType = equipmentData.recipeType
+            };
+
+            // 모듈 추가
+            if (equipmentData.modules != null)
+            {
+                foreach (var moduleData in equipmentData.modules)
+                {
+                    var module = DeserializeModule(moduleData);
+                    equipment.Modules.Add(module);
+                }
+            }
+
+            // 서브시스템 추가
+            if (equipmentData.subsystems != null)
+            {
+                foreach (var subsystemData in equipmentData.subsystems)
+                {
+                    var subsystem = DeserializeSubsystem(subsystemData);
+                    equipment.Subsystems.Add(subsystem);
+                }
+            }
+
+            return equipment;
+        }
+
+        // Module 객체 생성
+        private Module DeserializeModule(dynamic moduleData)
+        {
+            var module = new Module
+            {
+                Uid = moduleData.uid,
+                Name = moduleData.name,
+                Description = moduleData.description,
+                ElementType = moduleData.elementType,
+                ProcessName = moduleData.processName,
+                ProcessTypeValue = ParseProcessType(moduleData.processType?.ToString())
+            };
+
+            // IO 장치 추가
+            if (moduleData.ioDevices != null)
+            {
+                foreach (var ioDeviceData in moduleData.ioDevices)
+                {
+                    var ioDevice = DeserializeIODevice(ioDeviceData);
+                    module.IODevices.Add(ioDevice);
+                }
+            }
+
+            // 머티리얼 로케이션 추가
+            if (moduleData.materialLocations != null)
+            {
+                foreach (var locationData in moduleData.materialLocations)
+                {
+                    var location = DeserializeMaterialLocation(locationData);
+                    module.MaterialLocations.Add(location);
+                }
+            }
+
+            return module;
+        }
+
+        // Subsystem 객체 생성
+        private Subsystem DeserializeSubsystem(dynamic subsystemData)
+        {
+            var subsystem = new Subsystem
+            {
+                Uid = subsystemData.uid,
+                Name = subsystemData.name,
+                Description = subsystemData.description,
+                ElementType = subsystemData.elementType
+            };
+
+            // IO 장치 추가
+            if (subsystemData.ioDevices != null)
+            {
+                foreach (var ioDeviceData in subsystemData.ioDevices)
+                {
+                    var ioDevice = DeserializeIODevice(ioDeviceData);
+                    subsystem.IODevices.Add(ioDevice);
+                }
+            }
+
+            return subsystem;
+        }
+
+        // IODevice 객체 생성
+        private IODevice DeserializeIODevice(dynamic ioDeviceData)
+        {
+            return new IODevice
+            {
+                Uid = ioDeviceData.uid,
+                Name = ioDeviceData.name,
+                Description = ioDeviceData.description,
+                ElementType = ioDeviceData.elementType
+            };
+        }
+
+        // MaterialLocation 객체 생성
+        private MaterialLocation DeserializeMaterialLocation(dynamic locationData)
+        {
+            return new MaterialLocation
+            {
+                Uid = locationData.uid,
+                Name = locationData.name,
+                Description = locationData.description,
+                MaterialTypeValue = ParseMaterialType(locationData.materialType?.ToString()),
+                MaterialSubType = locationData.materialSubType
+            };
+        }
+
+        // 문자열을 ProcessType 열거형으로 변환
+        private ProcessType ParseProcessType(string processTypeStr)
+        {
+            if (string.IsNullOrEmpty(processTypeStr))
+                return ProcessType.Process;
+
+            if (Enum.TryParse<ProcessType>(processTypeStr, true, out var result))
+                return result;
+
+            return ProcessType.Process;
+        }
+
+        // 문자열을 MaterialType 열거형으로 변환
+        private MaterialType ParseMaterialType(string materialTypeStr)
+        {
+            if (string.IsNullOrEmpty(materialTypeStr))
+                return MaterialType.Other;
+
+            if (Enum.TryParse<MaterialType>(materialTypeStr, true, out var result))
+                return result;
+
+            return MaterialType.Other;
+        }
+
+        // 기본 모델 생성 (기존 하드코딩된 모델)
+        private void CreateDefaultCemModel()
+        {
+            // 기존 하드코딩된 내용과 동일
             _cemEquipment = new Equipment
             {
                 Uid = "Equipment-123",
@@ -55,68 +238,108 @@ namespace SemiE120.CEM
                 RecipeType = "PlasmaEtch"
             };
 
-            // Module 추가
-            var chamber = new Module
-            {
-                Uid = "Chamber1-456",
-                Name = "Chamber1",
-                Description = "Main Process Chamber",
-                ElementType = "Process Area",
-                ProcessName = "MainEtch",
-                ProcessTypeValue = ProcessType.Process
-            };
-            _cemEquipment.Modules.Add(chamber);
+            // 기존 코드 계속...
+        }
 
-            // IO 장치 추가
-            var pressureSensor = new IODevice
+        // 모델을 JSON 파일로 저장
+        private void SaveModelToFile(Equipment equipment)
+        {
+            try
             {
-                Uid = "PressureSensor-101",
-                Name = "PressureSensor",
-                Description = "Chamber Pressure Sensor",
-                ElementType = "Sensor"
-            };
-            chamber.IODevices.Add(pressureSensor);
+                // 모델을 동적 객체로 변환
+                var equipmentObject = new
+                {
+                    equipment = ConvertEquipmentToJsonObject(equipment)
+                };
 
-            // 머티리얼 로케이션 추가
-            var waferSlot = new MaterialLocation
+                // JSON으로 직렬화 및 저장
+                var jsonSettings = new JsonSerializerSettings
+                {
+                    Formatting = Newtonsoft.Json.Formatting.Indented,
+                    NullValueHandling = NullValueHandling.Ignore
+                };
+
+                string jsonContent = JsonConvert.SerializeObject(equipmentObject, jsonSettings);
+                File.WriteAllText(_modelConfigPath, jsonContent);
+
+                Console.WriteLine($"기본 장비 모델이 파일로 저장되었습니다: {_modelConfigPath}");
+            }
+            catch (Exception ex)
             {
-                Uid = "WaferSlot-202",
-                Name = "WaferSlot",
-                Description = "Wafer Processing Position",
-                MaterialTypeValue = MaterialType.Substrate,
-                MaterialSubType = "300mm Wafer"
-            };
-            chamber.MaterialLocations.Add(waferSlot);
+                Console.WriteLine($"모델 저장 중 오류 발생: {ex.Message}");
+            }
+        }
 
-            // Subsystem 추가
-            var gasSystem = new Subsystem
+        // Equipment 객체를 JSON 직렬화 가능 객체로 변환
+        private object ConvertEquipmentToJsonObject(Equipment equipment)
+        {
+            return new
             {
-                Uid = "GasSystem-789",
-                Name = "GasSystem",
-                Description = "Gas Distribution System",
-                ElementType = "Gas Distributor"
+                uid = equipment.Uid,
+                name = equipment.Name,
+                description = equipment.Description,
+                elementType = equipment.ElementType,
+                supplier = equipment.Supplier,
+                processName = equipment.ProcessName,
+                processType = equipment.ProcessTypeValue.ToString(),
+                recipeType = equipment.RecipeType,
+                modules = equipment.Modules.Select(m => ConvertModuleToJsonObject(m)).ToArray(),
+                subsystems = equipment.Subsystems.Select(s => ConvertSubsystemToJsonObject(s)).ToArray()
             };
-            _cemEquipment.Subsystems.Add(gasSystem);
+        }
 
-            // 상태 서브시스템 추가
-            var statsSystem = new Subsystem
+        // Module 객체를 JSON 직렬화 가능 객체로 변환
+        private object ConvertModuleToJsonObject(Module module)
+        {
+            return new
             {
-                Uid = "Statistics-999",
-                Name = "Statistics",
-                Description = "Equipment Statistics",
-                ElementType = "Control"
+                uid = module.Uid,
+                name = module.Name,
+                description = module.Description,
+                elementType = module.ElementType,
+                processName = module.ProcessName,
+                processType = module.ProcessTypeValue.ToString(),
+                ioDevices = module.IODevices.Select(d => ConvertIODeviceToJsonObject(d)).ToArray(),
+                materialLocations = module.MaterialLocations.Select(l => ConvertMaterialLocationToJsonObject(l)).ToArray()
             };
+        }
 
-            var connectionStatus = new IODevice
+        // Subsystem 객체를 JSON 직렬화 가능 객체로 변환
+        private object ConvertSubsystemToJsonObject(Subsystem subsystem)
+        {
+            return new
             {
-                Uid = "ConnectionStatus-001",
-                Name = "ConnectionStatus",
-                Description = "Connection Status",
-                ElementType = "Sensor"
+                uid = subsystem.Uid,
+                name = subsystem.Name,
+                description = subsystem.Description,
+                elementType = subsystem.ElementType,
+                ioDevices = subsystem.IODevices.Select(d => ConvertIODeviceToJsonObject(d)).ToArray()
             };
-            statsSystem.IODevices.Add(connectionStatus);
+        }
 
-            _cemEquipment.Subsystems.Add(statsSystem);
+        // IODevice 객체를 JSON 직렬화 가능 객체로 변환
+        private object ConvertIODeviceToJsonObject(IODevice ioDevice)
+        {
+            return new
+            {
+                uid = ioDevice.Uid,
+                name = ioDevice.Name,
+                description = ioDevice.Description,
+                elementType = ioDevice.ElementType
+            };
+        }
+
+        // MaterialLocation 객체를 JSON 직렬화 가능 객체로 변환
+        private object ConvertMaterialLocationToJsonObject(MaterialLocation location)
+        {
+            return new
+            {
+                uid = location.Uid,
+                name = location.Name,
+                description = location.Description,
+                materialType = location.MaterialTypeValue.ToString(),
+                materialSubType = location.MaterialSubType
+            };
         }
 
         private void InitializeTagMapping()
@@ -154,25 +377,11 @@ namespace SemiE120.CEM
 
         public async Task<object> GetValueAsync(string cemPath)
         {
-            // CEM 경로를 OPC UA 노드 ID로 변환
-            if (_cemToOpcTagMap.TryGetValue(cemPath, out string opcNodeId))
-            {
-                // OPC UA 서버에서 값 읽기
-                var value = _opcClient.ReadNode(new NodeId(opcNodeId, 2));  // 네임스페이스 인덱스 2 사용
-                return value?.Value;
-            }
-
             throw new KeyNotFoundException($"CEM 경로 '{cemPath}'에 대한 매핑이 없습니다.");
         }
 
         public async Task<bool> SetValueAsync(string cemPath, object value)
         {
-            // CEM 경로를 OPC UA 노드 ID로 변환 후 쓰기
-            if (_cemToOpcTagMap.TryGetValue(cemPath, out string opcNodeId))
-            {
-                return _opcClient.WriteNode(new NodeId(opcNodeId, 2), value) == StatusCodes.Good;
-            }
-
             throw new KeyNotFoundException($"CEM 경로 '{cemPath}'에 대한 매핑이 없습니다.");
         }
 

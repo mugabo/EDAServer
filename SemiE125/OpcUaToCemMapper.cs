@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using SemiE120.CEM;
 
-namespace SemiE120.OpcUaIntegration
+namespace SemiE125.Core.Communication.Mappers
 {
     public class OpcUaToCemMapper
     {
